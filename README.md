@@ -59,7 +59,7 @@ Features
 - Rails 3.1-style asset pipeline (See FAQ)
 - LESS stylesheets (auto-compiled via Express middleware)
 - Bootstrap 3 + Flat UI + iOS7 Theme
-- Contact Form (powered by Sendgrid)
+- Contact Form (powered by Mailgun or Sendgrid)
 - **Account Management**
  - Gravatar
  - Profile Details
@@ -111,6 +111,9 @@ need to go through each provider to generate new credentials.
 
 Obtaining API Keys
 ------------------
+
+:pushpin: You could support all 5 authentication methods by setting up OAuth keys, but you don't have to. If you would only like to have **Facebook sign-in** and **Local sign-in** with email and password, in **secrets.js** set `googleAuth: false`, `twitterOauth: false`, `githubAuth: false`. By doing so, *Google, Twitter and Github* buttons will not show up on the *Login* page. If you set `localAuth: false`, users will not be able to login/create an account with email and password or change password in the *Account Management* page.
+
 <img src="http://images.google.com/intl/en_ALL/images/srpr/logo6w.png" width="200">
 - Visit [Google Cloud Console](https://cloud.google.com/console/project)
 - Click **CREATE PROJECT** button
@@ -165,9 +168,21 @@ Obtaining API Keys
 
 <hr>
 
+<img src="https://s3.amazonaws.com/venmo/venmo_logo_blue.png" width="200">
+- Visit the **Account** section of your Venmo profile after logging in
+- Click on the **Developers** tab
+- Then click on the [new](https://venmo.com/account/app/new) link next to **Your Applications (0)**
+- Fill in the required fields: *App Name* and *What Will The App Be Used For?*
+- For **Web Redirect URL** enter: http://localhost:3000/auth/venmo/callback
+- Hit **Create** button
+- Back on the **Developers** tab click on **view** link next to **Your Applications (1) new**
+- Copy and paste **ID** and **Secret** keys into `config/secrets.js`
+
+<hr>
+
 <img src="https://www.paypalobjects.com/webstatic/developer/logo_paypal-developer_beta.png" width="200">
 - Visit [PayPal Developer](https://developer.paypal.com/)
-- Log in using your existing PayPal account
+- Log in to your PayPal account
 - Click **Applications > Create App** in the navigation bar
 - Enter *Application Name*, then click **Create app**
 - Copy and paste *Client ID* and *Secret* keys into `config/secrets.js`
@@ -201,7 +216,14 @@ Obtaining API Keys
 - Go to http://steamcommunity.com/dev/apikey
 - Sign in with your existing Steam account
 - Enter your *Domain Name*, then and click **Register**
-- Copy and paste *Key* into `config.secrets.js`
+- Copy and paste *Key* into `config/secrets.js`
+
+<hr>
+
+<img src="https://raw.github.com/mailgun/media/master/Mailgun_Primary.png" width="200">
+- Go to http://www.mailgun.com
+- Sign up and add your *Domain Name*
+- From the domain overview, copy and paste the default SMTP *Login* and *Password* into `config/secrets.js`
 
 Project Structure
 -----------------
@@ -226,7 +248,7 @@ Project Structure
 | **views**/layout.jade              | Base template.                                              |
 | **views**/home.jade                | Home page template.                                         |
 | app.js                             | Main application file.                                      |
-| cluster_app.js                     | Creates multiple processes of `app.js` using Node.js clusters.|
+| cluster_app.js                     | Runs multiple instances of `app.js` using <a href="http://nodejs.org/api/cluster.html" target="_blank">Node.js clusters</a>.|
 
 
 :exclamation: **Note:** There is no difference how you name or structure your views. You could place all your templates in a top-level `views` directory without having a nested folder structure, if that makes things easier for you. Just don't forget to update `extends ../layout`  and corresponding `res.render()` method in controllers. For smaller apps, I find having a flat folder structure to be easier to work with.
@@ -306,7 +328,7 @@ From the [Node.js Documentation](http://nodejs.org/api/cluster.html#cluster_how_
 
 `cluster_app.js` allows you to take advantage of this feature by forking a process of `app.js`
 for each CPU detected. For the majority of applications serving HTTP requests,
-this is a resounding boon. However, the cluster module is still in experimental stage, therefore it should only be used after understanding its purpose and behavior. To use it, simply run `node cluster_app.js`. **Its use is entirely optional and `app.js` is not tied in any way to it**. As a reminder, if you plan to use `cluster_app.js` instead of `app.js`, be sure to indicate that in `Procfile` if you are deploying your app to Heroku.
+this is a resounding boon. However, the cluster module is still in experimental stage, therefore it should only be used after understanding its purpose and behavior. To use it, simply run `node cluster_app.js`. **Its use is entirely optional and `app.js` is not tied in any way to it**. As a reminder, if you plan to use `cluster_app.js` instead of `app.js`, be sure to indicate that in `package.json` when you are ready to deploy your app.
 
 ### What is this Rails 3.1-style asset pipeline that you mentioned in Features?
 This is how you typically define static files inside HTML, Jade or any template for that matter:
@@ -401,6 +423,9 @@ well with *passport-local*, but AFAIK it does not exist yet. Even, [Keystone.JS]
 this feature. I have started working on it, but if it's really that important and you would like to continue
 it, check out the [forgot-password](https://github.com/sahat/hackathon-starter/tree/forgot-password) branch. So far it has a template, GET controller to render that template,
 POST controller to send an email via Nodemailer.
+
+### How do I switch SendGrid for another email delivery service?
+If you would like to use [Mailgun](http://mailgun.com) service instead of [SendGrid](http://sendgrid.com) for sending emails, open `controllers/contact.js`, then inside `var smtpTransport = nodemailer.createTransport('SMTP', { });` comment out or delete **SendGrid** code block, and uncomment **Mailgun** code block. You are not limited to just SendGrid or Mailgun. **Nodemailer** library supports many other providers, including GMail, iCloud, Hotmail, Yahoo, Mail.ru. Just don't forget to add *username* and *password* for that service provider to `secrets.js`.
 
 How It Works (mini guides)
 --------------------------
@@ -771,7 +796,7 @@ Deployment
 Once you are ready to deploy your app, you will need to create an account with a cloud platform to host it. These are not
 the only choices, but they are my top picks. Create an account with **MongoLab** and then pick one of the 4 providers
 below. Once again, there are plenty of other choices and you are not limited to just the ones listed below. From my
-experience, **Heroku** is the easiest to get started with, it will automatically restart your node.js process when it crashes, custom domain support on free accounts, hot push deployments, and *Hackathon Starter* already includes `Procfile`, which is necessary for deployment to **Heroku**.
+experience, **Heroku** is the easiest to get started with, it will automatically restart your node.js process when it crashes, custom domain support on free accounts and zero-downtime deployments.
 
 <img src="http://i.imgur.com/7KnCa5a.png" width="200">
 - Open [mongolab.com](https://mongolab.com) website
@@ -833,7 +858,7 @@ Add this to `package.json`, after *name* and *version*. This is necessary becaus
  - **Note**: The first time you run this command, you have to pass `-f` (force) flag because OpenShift creates a dummy server with the welcome page when you create a new Node.js app. Passing `-f` flag will override everything with your *Hackathon Starter* project repository. Please **do not** do `git pull` as it will create unnecessary merge conflicts.
 - And you are done! (Not quite as simple as Heroku, huh?)
 
-<img src="https://nodejs-in-production.nodejitsu.com/img/nodejitsu.png" width="200">
+<img src="https://www.nodejitsu.com/img/media/nodejitsu-transparent.png" width="200">
 
 TODO: Will be added soon.
 

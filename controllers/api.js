@@ -1,6 +1,7 @@
 var secrets = require('../config/secrets');
 var User = require('../models/User');
 var querystring = require('querystring');
+var validator = require('validator');
 var async = require('async');
 var cheerio = require('cheerio');
 var request = require('request');
@@ -346,41 +347,41 @@ exports.getSteam = function(req, res, next) {
   var query = { l: 'english', steamid: steamId, key: secrets.steam.apiKey };
 
   async.parallel({
-    playerAchievements: function(done) {
-      query.appid = '49520';
-      var qs = querystring.stringify(query);
-      request.get({ url: 'http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?' + qs, json: true }, function(error, request, body) {
-        if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
-        done(error, body);
-      });
+      playerAchievements: function(done) {
+        query.appid = '49520';
+        var qs = querystring.stringify(query);
+        request.get({ url: 'http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?' + qs, json: true }, function(error, request, body) {
+          if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
+          done(error, body);
+        });
+      },
+      playerSummaries: function(done) {
+        query.steamids = steamId;
+        var qs = querystring.stringify(query);
+        request.get({ url: 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?' + qs, json: true }, function(error, request, body) {
+          if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
+          done(error, body);
+        });
+      },
+      ownedGames: function(done) {
+        query.include_appinfo = 1;
+        query.include_played_free_games = 1;
+        var qs = querystring.stringify(query);
+        request.get({ url: 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?' + qs, json: true }, function(error, request, body) {
+          if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
+          done(error, body);
+        });
+      }
     },
-    playerSummaries: function(done) {
-      query.steamids = steamId;
-      var qs = querystring.stringify(query);
-      request.get({ url: 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?' + qs, json: true }, function(error, request, body) {
-        if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
-        done(error, body);
-      });
-    },
-    ownedGames: function(done) {
-      query.include_appinfo = 1;
-      query.include_played_free_games = 1;
-      var qs = querystring.stringify(query);
-      request.get({ url: 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?' + qs, json: true }, function(error, request, body) {
-        if (request.statusCode === 401) return done(new Error('Missing or Invalid Steam API Key'));
-        done(error, body);
-      });
-    }
-  },
-  function(err, results) {
-    if (err) return next(err);
+    function(err, results) {
+      if (err) return next(err);
       res.render('api/steam', {
-      title: 'Steam Web API',
-      ownedGames: results.ownedGames.response.games,
-      playerAchievemments: results.playerAchievements.playerstats,
-      playerSummary: results.playerSummaries.response.players[0]
+        title: 'Steam Web API',
+        ownedGames: results.ownedGames.response.games,
+        playerAchievemments: results.playerAchievements.playerstats,
+        playerSummary: results.playerSummaries.response.players[0]
+      });
     });
-  });
 };
 
 /**
@@ -411,5 +412,73 @@ exports.postTwilio = function(req, res, next) {
     if (err) return next(err.message);
     req.flash('success', { msg: 'Text sent to ' + responseData.to + '.'})
     res.redirect('/api/twilio');
+  });
+};
+
+exports.getVenmo = function(req, res, next) {
+  var token = _.findWhere(req.user.tokens, { kind: 'venmo' });
+  var query = querystring.stringify({ access_token: token.accessToken });
+
+  async.parallel({
+    getProfile: function(done) {
+      request.get({ url: 'https://api.venmo.com/v1/me?' + query, json: true }, function(err, request, body) {
+        done(err, body);
+      });
+    },
+    getRecentPayments: function(done) {
+      request.get({ url: 'https://api.venmo.com/v1/payments?' + query, json: true }, function(err, request, body) {
+        done(err, body);
+
+      });
+    }
+  },
+  function(err, results) {
+    if (err) return next(err);
+    res.render('api/venmo', {
+      title: 'Venmo API',
+      profile: results.getProfile.data,
+      recentPayments: results.getRecentPayments.data
+    });
+  });
+};
+
+exports.postVenmo = function(req, res, next) {
+  req.assert('user', 'Phone, Email or Venmo User ID cannot be blank').notEmpty();
+  req.assert('note', 'Please enter a message to accompany the payment').notEmpty();
+  req.assert('amount', 'The amount you want to pay cannot be blank').notEmpty();
+
+  var errors = req.validationErrors();
+
+  if (errors) {
+    req.flash('errors', errors);
+    return res.redirect('/api/venmo');
+  }
+
+  var token = _.findWhere(req.user.tokens, { kind: 'venmo' });
+
+  var formData = {
+    access_token: token.accessToken,
+    note: req.body.note,
+    amount: req.body.amount
+  };
+
+  if (validator.isEmail(req.body.user)) {
+    formData.email = req.body.user;
+  } else if (validator.isNumeric(req.body.user) &&
+    validator.isLength(req.body.user, 10, 11)) {
+    formData.phone = req.body.user;
+  } else {
+    formData.user_id = req.body.user;
+  }
+
+  // Send money
+  request.post('https://api.venmo.com/v1/payments', { form: formData }, function(err, request, body) {
+    if (err) return next(err);
+    if (request.statusCode !== 200) {
+      req.flash('errors', { msg: JSON.parse(body).error.message });
+      return res.redirect('/api/venmo');
+    }
+    req.flash('success', { msg: 'Venmo money transfer complete' });
+    res.redirect('/api/venmo');
   });
 };

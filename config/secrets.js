@@ -4,6 +4,11 @@ module.exports = {
   localAuth: true,
   sessionSecret: "Your Session Secret goes here",
 
+  mailgun: {
+    login: 'Your Mailgun SMTP Username',
+    password: 'Your Mailgun SMTP Password'
+  },
+
   sendgrid: {
     user: 'Your SendGrid Username',
     password: 'Your SendGrid Password'
@@ -49,7 +54,7 @@ module.exports = {
     callbackURL: '/auth/google/callback',
     passReqToCallback: true
   },
-  
+
   steam: {
     apiKey: 'Your Steam API Key'
   },
@@ -69,6 +74,12 @@ module.exports = {
     clientId: 'Your Client ID',
     clientSecret: 'Your Client Secret',
     redirectUrl: 'http://localhost:3000/auth/foursquare/callback'
+  },
+
+  venmo: {
+    clientId: 'Your Venmo Client ID',
+    clientSecret: 'Your Venmo Client Secret',
+    redirectUrl: 'http://localhost:3000/auth/venmo/callback'
   },
 
   paypal: {
