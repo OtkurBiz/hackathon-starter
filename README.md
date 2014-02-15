@@ -18,8 +18,7 @@ I also tried to make it as **generic** and **reusable** as possible to cover mos
 without being too specific. In the worst case you can use this as a guide for your projects, if for example you are only
 interested in **Sign in with Google** authentication and nothing else.
 
-Chances are, you might not need all 4 types of OAuth 1.0a/OAuth2 authentication methods, or all 9 API examples.
-Sadly, there is no step-by-step wizard to configure the boilerplate code just for your use case. So, use what you need, simply delete what you don't need.
+Chances are, you might not need all 4 types of OAuth 1.0a/OAuth2 authentication methods, or all 12+ API examples. So, use what you need and delete what you don't need. As of recently, it is possible to selectively *enable/disable* authentication methods in `config/secrets.js`.
 
 <h4 align="center">Flatly Bootstrap Theme</h3>
 
@@ -36,6 +35,7 @@ Table of Contents
 - [Getting Started](#getting-started)
 - [Obtaining API Keys](#obtaining-api-keys)
 - [Project Structure](#project-structure)
+- [List of Packages](#list-of-packages)
 - [Useful Tools](#useful-tools)
 - [Recommended Design](#recommended-design)
 - [Recommended Node.js Libraries](#recommended-nodejs-libraries)
@@ -43,6 +43,7 @@ Table of Contents
 - [Pro Tips](#pro-tips)
 - [FAQ](#faq)
 - [How It Works](#how-it-works-mini-guides)
+- [Mongoose Cheatsheet](#mongoose-cheatsheet)
 - [Deployment](#deployment)
 - [TODO](#todo)
 - [Contributing](#contributing)
@@ -113,6 +114,13 @@ Obtaining API Keys
 ------------------
 
 :pushpin: You could support all 5 authentication methods by setting up OAuth keys, but you don't have to. If you would only like to have **Facebook sign-in** and **Local sign-in** with email and password, in **secrets.js** set `googleAuth: false`, `twitterOauth: false`, `githubAuth: false`. By doing so, *Google, Twitter and Github* buttons will not show up on the *Login* page. If you set `localAuth: false`, users will not be able to login/create an account with email and password or change password in the *Account Management* page.
+
+:bulb: Alternatively, if you would like to completely remove authentication methods that you do not plan on using, you will need to manually delete the code yourself. Let's say you want to keep only **Local authentication**. Start by deleting *FacebookStrategy, TwitterStrategy, GitHubStrategy, GoogleStrategy* `require` lines and their corresponding defined strategies in **passport.js**. Then in **login.jade** template delete the entire `.btn-group`, leaving only the form with Email and Password.
+Update **User.js** model by deleting the following fields: `facebook`, `github`, `google`, `twitter`. In your **profile.jade** template delete the entire code starting with **h3 Linked Accounts**. And finally delete the corresponding routes that have **/auth/provider** and **/auth/provider/callback**, for example:
+```js
+app.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email', 'user_location'] }));
+app.get('/auth/facebook/callback', passport.authenticate('facebook', { successRedirect: '/', failureRedirect: '/login' }));
+```
 
 <img src="http://images.google.com/intl/en_ALL/images/srpr/logo6w.png" width="200">
 - Visit [Google Cloud Console](https://cloud.google.com/console/project)
@@ -250,10 +258,44 @@ Project Structure
 | app.js                             | Main application file.                                      |
 | cluster_app.js                     | Runs multiple instances of `app.js` using <a href="http://nodejs.org/api/cluster.html" target="_blank">Node.js clusters</a>.|
 
-
 :exclamation: **Note:** There is no difference how you name or structure your views. You could place all your templates in a top-level `views` directory without having a nested folder structure, if that makes things easier for you. Just don't forget to update `extends ../layout`  and corresponding `res.render()` method in controllers. For smaller apps, I find having a flat folder structure to be easier to work with.
 
 :bangbang: **Note:** Although your main template - **layout.jade** only knows about `/css/styles.css` file, you should be editing **styles.less** stylesheet. Express will automatically generate minified **styles.css** whenever there are changes in LESS file. This is done via [less-middleware](https://github.com/emberfeather/less.js-middleware) node.js library.
+
+List of Packages
+----------------
+| Package       | Description   |
+| ------------- |:-------------:|
+| async         | Utility library that provides asynchronous control flow. |
+| bcrypt-nodejs | Library for hashing and salting user passwords. |
+| cheerio | Scrape web pages using jQuery-style syntax.  |
+| connect-mongo | MongoDB session store for Express. |
+| connect-assets | Compiles LESS stylesheets, concatenates/minifies JavaScript. |
+| express | Web framework. |
+| express-flash | Provides flash messages for Express. Uses connect-flash internally. |
+| express-validator | Easy form validation for Express. Uses node-validator internally. |
+| fbgraph | Facebook Graph API library |
+| github-api | GitHub API library |
+| jade | Template engine for node.js |
+| lastfm | Last.fm API library |
+| less | LESS compiler. Used implicitly by connect-assets. |
+| mongoose | MongoDB object modeling tool |
+| node-foursquare | Foursquare API library |
+| nodemailer | Node.js library for sending emails |
+| passport | Simple and elegant authentication library for node.js |
+| passport-facebook | Sign-in with Facebook plugin. |
+| passport-github | Sign-in with GitHub plugin. |
+| passport-google-oauth | Sign-in with Google plugin. |
+| passport-twitter | Sign-in with Twitter plugin. |
+| passport-local | Sign-in with Username and Password plugin. |
+| passport-oauth | Allows you to set up your own OAuth 1.0a and OAuth 2.0 strategies. |
+| request | Simplified HTTP request library. |
+| tumblr.js | Tumblr API library. |
+| underscore | Handy JavaScript utlities library. |
+| paypal-rest-sdk | PayPal API library. |
+| twilio | Twilio API library. |
+| validator | Used in conjunction with express-validator in **controllers/api.js**. |
+
 
 Useful Tools
 ------------
@@ -412,17 +454,12 @@ for authentication with single page applications. If you insist on using
 a client-side framework, it's best if you use a boilerplate of choice for your particular
 client-side framework and just grab the pieces you need from the Hackathon Starter.
 
-### Why is there no "Forgot Password" during login?
-I started working on it, but quickly realized it should be library's responsibility. It would
-add a lot of extra code to an already hefty boilerplate that people would have to go through.
-That's part of the reason. The main reason is I have never built this feature before,
-and there is no "one true way" to do it if you search the web. I don't
-want to invest a lot of time into it by putting together a quick hack, trying to mimick the way
-others have build this feature. Ideally, I wish there was node.js library that integrates
-well with *passport-local*, but AFAIK it does not exist yet. Even, [Keystone.JS](http://keystonejs.com/) - a node.js CMS does not have
-this feature. I have started working on it, but if it's really that important and you would like to continue
-it, check out the [forgot-password](https://github.com/sahat/hackathon-starter/tree/forgot-password) branch. So far it has a template, GET controller to render that template,
-POST controller to send an email via Nodemailer.
+### Why is there no Mozilla Persona as a sign-in option?
+If you would like to use **Persona** authentication strategy, use the [pull request #64](https://github.com/sahat/hackathon-starter/pull/64) as
+a reference guide. I have explained my reasons why it could not be merged into the *Hackathon Starter* in
+[issue #63](https://github.com/sahat/hackathon-starter/issues/63#issuecomment-34898290).
+
+
 
 ### How do I switch SendGrid for another email delivery service?
 If you would like to use [Mailgun](http://mailgun.com) service instead of [SendGrid](http://sendgrid.com) for sending emails, open `controllers/contact.js`, then inside `var smtpTransport = nodemailer.createTransport('SMTP', { });` comment out or delete **SendGrid** code block, and uncomment **Mailgun** code block. You are not limited to just SendGrid or Mailgun. **Nodemailer** library supports many other providers, including GMail, iCloud, Hotmail, Yahoo, Mail.ru. Just don't forget to add *username* and *password* for that service provider to `secrets.js`.
@@ -788,7 +825,39 @@ If you want to see a really cool real-time dashboard check out this [live exampl
 
 Mongoose Cheatsheet
 -------------------
-TODO
+#### Find all users:
+```js
+User.find(function(err, users) {
+  console.log(users);
+});
+```
+
+#### Find a user by email:
+```js
+var userEmail = 'example@gmail.com';
+User.findOne({ email: userEmail }, function(err, user) {
+  console.log(user);
+});
+```
+
+#### Find 5 most recent user accounts:
+```js
+User
+  .find()
+  .sort({ _id: -1 })
+  .limit(5)
+  .exec(function(err, users) {
+    console.log(users);
+  });
+```
+
+#### Get total count of a field from all documents:
+Let's suppose that each user has a `votes` field and you would like to count the total number of votes in your database accross all users. One very inefficient way would be to loop through each document and manually accumulate the count. Or you could use [MongoDB Aggregation Framework](http://docs.mongodb.org/manual/core/aggregation-introduction/) instead:
+```js
+User.aggregate({ $group: { _id: null, total: { $sum: '$votes' } } }, function(err, votesCount) {
+  console.log(votesCount.total);
+});
+```
 
 Deployment
 ----------
@@ -859,6 +928,11 @@ Add this to `package.json`, after *name* and *version*. This is necessary becaus
 - And you are done! (Not quite as simple as Heroku, huh?)
 
 <img src="https://www.nodejitsu.com/img/media/nodejitsu-transparent.png" width="200">
+- To install **jitsu**, open a terminal and type: `sudo npm install -g jitsu`
+- Run `jitsu login` and enter your login credentials
+- From your app directory, run `jitsu deploy`
+ - This will create a new application snapshot, generate and/or update project metadata
+- Done!
 
 TODO: Will be added soon.
 
